@@ -364,6 +364,12 @@ def convert_to_notion_format(song_data):
             "rich_text": [{"text": {"content": str(song_data['artist'])[:2000]}}]
         }
     
+    # main_theme (text) - 主題歌情報
+    if song_data.get('main_theme'):
+        notion_data["main_theme"] = {
+            "rich_text": [{"text": {"content": str(song_data['main_theme'])[:2000]}}]
+        }
+    
     # lyricist (text)
     if song_data.get('lyricist'):
         notion_data["lyricist"] = {
