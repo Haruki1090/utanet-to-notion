@@ -343,53 +343,79 @@ def convert_to_notion_format(song_data):
     Returns:
         dict: Notion API形式のデータ
     """
+    def is_valid_data(value):
+        """データが有効かどうかをチェック（nan、None、空文字列を除外）"""
+        if value is None:
+            return False
+        if pd.isna(value):  # pandas NaN をチェック
+            return False
+        str_value = str(value).strip().lower()
+        if str_value in ['', 'nan', 'none', 'null']:
+            return False
+        return True
+    
+    def get_clean_text(value, max_length=2000):
+        """テキストデータをクリーンアップして返す"""
+        if not is_valid_data(value):
+            return ""
+        cleaned_text = str(value).strip()
+        if max_length is not None:
+            return cleaned_text[:max_length]
+        return cleaned_text
+    
     notion_data = {}
     
     # song_id (number)
-    if song_data.get('song_id'):
+    if song_data.get('song_id') and is_valid_data(song_data['song_id']):
         try:
             notion_data["song_id"] = {"number": int(song_data['song_id'])}
         except (ValueError, TypeError):
             notion_data["song_id"] = {"number": None}
     
     # title (title) - Notionのタイトルプロパティ
-    if song_data.get('title'):
+    title_text = get_clean_text(song_data.get('title'))
+    if title_text:
         notion_data["title"] = {
-            "title": [{"text": {"content": str(song_data['title'])[:2000]}}]  # Notionの制限: 2000文字
+            "title": [{"text": {"content": title_text}}]
         }
     
     # artist (text)
-    if song_data.get('artist'):
+    artist_text = get_clean_text(song_data.get('artist'))
+    if artist_text:
         notion_data["artist"] = {
-            "rich_text": [{"text": {"content": str(song_data['artist'])[:2000]}}]
+            "rich_text": [{"text": {"content": artist_text}}]
         }
     
     # main_theme (text) - 主題歌情報
-    if song_data.get('main_theme'):
+    main_theme_text = get_clean_text(song_data.get('main_theme'))
+    if main_theme_text:
         notion_data["main_theme"] = {
-            "rich_text": [{"text": {"content": str(song_data['main_theme'])[:2000]}}]
+            "rich_text": [{"text": {"content": main_theme_text}}]
         }
     
     # lyricist (text)
-    if song_data.get('lyricist'):
+    lyricist_text = get_clean_text(song_data.get('lyricist'))
+    if lyricist_text:
         notion_data["lyricist"] = {
-            "rich_text": [{"text": {"content": str(song_data['lyricist'])[:2000]}}]
+            "rich_text": [{"text": {"content": lyricist_text}}]
         }
     
     # composer (text)
-    if song_data.get('composer'):
+    composer_text = get_clean_text(song_data.get('composer'))
+    if composer_text:
         notion_data["composer"] = {
-            "rich_text": [{"text": {"content": str(song_data['composer'])[:2000]}}]
+            "rich_text": [{"text": {"content": composer_text}}]
         }
     
     # arranger (text)
-    if song_data.get('arranger'):
+    arranger_text = get_clean_text(song_data.get('arranger'))
+    if arranger_text:
         notion_data["arranger"] = {
-            "rich_text": [{"text": {"content": str(song_data['arranger'])[:2000]}}]
+            "rich_text": [{"text": {"content": arranger_text}}]
         }
     
     # release_date (date)
-    if song_data.get('release_date'):
+    if song_data.get('release_date') and is_valid_data(song_data['release_date']):
         try:
             # 日付形式を変換 (YYYY/MM/DD → YYYY-MM-DD)
             date_str = str(song_data['release_date']).replace('/', '-')
@@ -401,20 +427,19 @@ def convert_to_notion_format(song_data):
             notion_data["release_date"] = {"date": None}
     
     # cover (file) - URLから
-    if song_data.get('cover_url'):
-        cover_url = str(song_data['cover_url'])
-        if cover_url and cover_url.startswith('http'):
-            notion_data["cover"] = {
-                "files": [{
-                    "type": "external",
-                    "name": f"cover_{song_data.get('song_id', 'unknown')}.jpg",
-                    "external": {"url": cover_url}
-                }]
-            }
+    cover_url = get_clean_text(song_data.get('cover_url'))
+    if cover_url and cover_url.startswith('http'):
+        notion_data["cover"] = {
+            "files": [{
+                "type": "external",
+                "name": f"cover_{song_data.get('song_id', 'unknown')}.jpg",
+                "external": {"url": cover_url}
+            }]
+        }
     
     # lyrics (text) - 長いテキストの場合は分割
-    if song_data.get('lyrics'):
-        lyrics_text = str(song_data['lyrics'])
+    lyrics_text = get_clean_text(song_data.get('lyrics'), max_length=None)  # 歌詞は長いので制限なし
+    if lyrics_text:
         # Notionのrich_textは2000文字制限があるため、必要に応じて分割
         if len(lyrics_text) <= 2000:
             notion_data["lyrics"] = {
